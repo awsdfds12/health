@@ -106,7 +106,7 @@ resource "aws_eip" "ip" {
 
 
 resource "aws_instance" "web" {
-  ami           = "ami-03f4878755434977f" 
+  ami           = "ami-07d9b9ddc6cd8dd30" 
   instance_type = "t2.micro"
   availability_zone = "us-east-1a"
   key_name = "titu"
