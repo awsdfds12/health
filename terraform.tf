@@ -119,13 +119,11 @@ resource "aws_instance" "web" {
 
   user_data = <<-EOF
   #!/bin/bash
-              sudo apt update -y
-              sudo apt update -y
-              sudo apt-get install -y apache2
-              sudo systemctl start apache2
-              sudo bash -c 'echo your very first web server > /var/www/html/index.html'
-              sudo systemctl enable apache2
-              sudo systemctl start apache2
+                sudo apt-get update -y
+                sudo apt install docker.io -y
+                sudo systemctl enable docker
+                sudo docker run -itd -p 8084:8082 krishtonnaik1/health07:1
+                sudo docker start $(docker ps -aq)
   EOF
 
   tags = {
