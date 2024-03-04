@@ -115,7 +115,7 @@ resource "aws_eip" "proj-eip" {
 }
 
 resource "aws_instance" "Prod-Server" {
- ami = "ami-07d9b9ddc6cd8dd30"
+ ami = "ami-03bb6d83c60fc5f7c"
  instance_type = "t2.micro"
  availability_zone = "ap-south-1b"
  key_name = "tt"
