@@ -27,7 +27,7 @@ resource "aws_route_table" "rt" {
 resource "aws_subnet" "subnet" {
   vpc_id     = aws_vpc.main.id
   cidr_block = "10.0.1.0/24"
-  availability_zone = "ap-east-1a"
+  availability_zone = "us-east-1a"
 }
 
 resource "aws_route_table_association" "a" {
@@ -108,7 +108,7 @@ resource "aws_eip" "ip" {
 resource "aws_instance" "web" {
   ami           = "ami-03f4878755434977f" 
   instance_type = "t2.micro"
-  availability_zone = "ap-east-1a"
+  availability_zone = "us-east-1a"
   key_name = "titu"
 
 
