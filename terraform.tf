@@ -1,62 +1,46 @@
 terraform {
   required_providers {
     aws = {
-      source  = "hashicorp/aws"
-      version = "~> 4.0"
+      source = "hashicorp/aws"
+      version = "~> 5.0"
     }
   }
 }
 
-provider "aws" {
-  region = "ap-south-1"
-}
-# Creating a VPC
-resource "aws_vpc" "proj-vpc" {
- cidr_block = "10.0.0.0/16"
+resource "aws_vpc" "main" {
+  cidr_block = "10.0.0.0/16"
 }
 
-resource "aws_internet_gateway" "proj-ig" {
- vpc_id = aws_vpc.proj-vpc.id
- tags = {
- Name = "gateway1"
- }
+resource "aws_internet_gateway" "gw" {
+  vpc_id = aws_vpc.main.id
 }
 
-resource "aws_route_table" "proj-rt" {
- vpc_id = aws_vpc.proj-vpc.id
- route {
+resource "aws_route_table" "rt" {
+  vpc_id = aws_vpc.main.id
 
- cidr_block = "0.0.0.0/0"
- gateway_id = aws_internet_gateway.proj-ig.id
- }
- route {
- ipv6_cidr_block = "::/0"
- gateway_id = aws_internet_gateway.proj-ig.id
- }
- tags = {
- Name = "rt1"
- }
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = aws_internet_gateway.gw.id
+  }
 }
 
-resource "aws_subnet" "proj-subnet" {
- vpc_id = aws_vpc.proj-vpc.id
- cidr_block = "10.0.1.0/24"
- availability_zone = "ap-south-1b"
- tags = {
- Name = "subnet1"
- }
+resource "aws_subnet" "subnet" {
+  vpc_id     = aws_vpc.main.id
+  cidr_block = "10.0.1.0/24"
+  availability_zone = "ap-south-1a"
 }
 
-resource "aws_route_table_association" "proj-rt-sub-assoc" {
-subnet_id = aws_subnet.proj-subnet.id
-route_table_id = aws_route_table.proj-rt.id
+resource "aws_route_table_association" "a" {
+  subnet_id      = aws_subnet.subnet.id
+  route_table_id = aws_route_table.rt.id
 }
 
-resource "aws_security_group" "proj-sg" {
- name = "proj-sg"
- description = "Enable web traffic for the project"
- vpc_id = aws_vpc.proj-vpc.id
- ingress {
+resource "aws_security_group" "sg" {
+  name        = "allow_tls"
+  description = "Allow TLS inbound traffic"
+  vpc_id      = aws_vpc.main.id
+
+  ingress {
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
@@ -69,69 +53,83 @@ resource "aws_security_group" "proj-sg" {
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
- ingress {
- description = "HTTPS traffic"
- from_port = 443
- to_port = 443
- protocol = "tcp"
- cidr_blocks = ["0.0.0.0/0"]
- }
- ingress {
- description = "HTTP traffic"
- from_port = 0
- to_port = 65000
- protocol = "tcp"
- cidr_blocks = ["0.0.0.0/0"]
- }
- ingress {
- description = "Allow port 80 inbound"
- from_port   = 80
- to_port     = 80
- protocol    = "tcp"
- cidr_blocks = ["0.0.0.0/0"]
+
+  ingress {
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
   }
- egress {
- from_port = 0
- to_port = 0
- protocol = "-1"
- cidr_blocks = ["0.0.0.0/0"]
- ipv6_cidr_blocks = ["::/0"]
- }
- tags = {
- Name = "proj-sg1"
- }
+
+  ingress {
+    from_port   = 0
+    to_port     = 65000
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
 }
 
-resource "aws_network_interface" "proj-ni" {
- subnet_id = aws_subnet.proj-subnet.id
- private_ips = ["10.0.1.10"]
- security_groups = [aws_security_group.proj-sg.id]
+resource "aws_network_interface" "foo" {
+  subnet_id       = aws_subnet.subnet.id
+  private_ips     = ["10.0.1.50"]  
+  security_groups = [aws_security_group.sg.id]
 }
 
-resource "aws_eip" "proj-eip" {
- vpc = true
- network_interface = aws_network_interface.proj-ni.id
- associate_with_private_ip = "10.0.1.10"
+
+resource "aws_eip" "ip" {
+  domain = "vpc"
+  network_interface       = aws_network_interface.foo.id
+  associate_with_private_ip = "10.0.1.50"  
 }
 
-resource "aws_instance" "Prod-Server" {
- ami = "ami-03bb6d83c60fc5f7c"
- instance_type = "t2.micro"
- availability_zone = "ap-south-1b"
- key_name = "tt"
- network_interface {
- device_index = 0
- network_interface_id = aws_network_interface.proj-ni.id
- }
- user_data  = <<-EOF
- #!/bin/bash
-     sudo apt-get update -y
-     sudo apt install docker.io -y
-     sudo systemctl enable docker
-     sudo docker run -itd -p 8084:8082 krishtonnaik1/health07:1
-     sudo docker start $(docker ps -aq)
- EOF
- tags = {
- Name = "Prod-Server"
- }
+
+resource "aws_instance" "web" {
+  ami           = "ami-03f4878755434977f" 
+  instance_type = "t2.micro"
+  availability_zone = "ap-south-1a"
+  key_name = "tt"
+
+
+  network_interface {
+    device_index          = 0
+    network_interface_id  = aws_network_interface.foo.id
+  }
+
+  user_data = <<-EOF
+  #!/bin/bash
+              sudo apt update -y
+              sudo apt update -y
+              sudo apt-get install -y apache2
+              sudo systemctl start apache2
+              sudo bash -c 'echo your very first web server > /var/www/html/index.html'
+              sudo systemctl enable apache2
+              sudo systemctl start apache2
+  EOF
+
+  tags = {
+  Name = "Titu"
+  }
+
 }
